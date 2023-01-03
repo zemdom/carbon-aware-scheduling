@@ -1,0 +1,9 @@
+server:
+  affinity: ""
+  ha:
+    enabled: true
+    raft: 
+      enabled: true
+  dataStorage:
+    size: 2Gi
+

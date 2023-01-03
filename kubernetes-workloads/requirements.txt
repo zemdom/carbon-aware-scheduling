@@ -1,0 +1,5 @@
+ansible==5.8.0
+docker==5.0.3
+kubernetes==24.2.0
+PyYAML==6.0
+requests==2.28.1

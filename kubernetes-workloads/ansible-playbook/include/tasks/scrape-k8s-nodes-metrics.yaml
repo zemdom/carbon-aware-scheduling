@@ -1,0 +1,15 @@
+---
+- name: "scrape_k8s_nodes_metrics | Wait for all samples to be available for scraping"
+  ansible.builtin.pause:
+    seconds: 120
+
+- name: "scrape_k8s_nodes_metrics | Expose Prometheus outside k8s cluster"
+  ansible.builtin.shell: kubectl port-forward svc/{{ monitoring_release_name }}-prometheus {{ prometheus_endpoint_port }}:9090 --namespace {{ monitoring_namespace }} </dev/null >/dev/null 2>&1 &
+
+- name: "scrape_k8s_nodes_metrics | Run script to scrape k8s nodes metrics to file"
+  ansible.builtin.command: python3 "{{ playbook_dir }}/utils/export_prometheus_metrics_to_file.py" {{ run_id }} {{ logdir }}/{{ run_id }} {{ time_resolution }} {{ prometheus_endpoint }}
+
+- name: "scrape_k8s_nodes_metrics | Stop exposing Prometheus outside k8s cluster"
+  ansible.builtin.shell: ps aux | grep -i kubectl | grep -v grep | awk {'print $2'} | xargs kill
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

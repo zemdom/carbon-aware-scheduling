@@ -1,0 +1,8 @@
+---
+collections:
+  - name: cloud.common
+    version: 2.1.0
+  - name: kubernetes.core
+    version: 2.2.0
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

@@ -1,0 +1,53 @@
+---
+# general
+logdir: "/home/ubuntu/logdir"
+
+# monitoring specific
+monitoring_release_name: "kube-prometheus"
+monitoring_namespace: "nodes-monitoring"
+
+prometheus_endpoint_port: 9090
+prometheus_endpoint: "http://localhost:{{ prometheus_endpoint_port }}"
+
+metrics_server_release_name: "metrics-server"
+metrics_server_namespace: "kube-system"
+
+metrics_server_exporter_release_name: "metrics-server-exporter"
+metrics_server_exporter_manifests_path: "{{ logdir }}"
+
+# benchmarks specific
+build_benchmark_operator_default: False
+build_benchmark_operator: "{{ lookup('env', 'build_benchmark_operator') | default(build_benchmark_operator_default, true) }}"
+
+benchmark_operator_image_registry_default: "ghcr.io"
+benchmark_operator_image_name_default: "zemdom/benchmark-operator"
+benchmark_operator_image_tag_default: "v0.0.1"
+benchmark_operator_image_registry: "{{ lookup('env', 'benchmark_operator_image_registry') | default(benchmark_operator_image_registry_default, true) }}"
+benchmark_operator_image_name: "{{ lookup('env', 'benchmark_operator_image_name') | default(benchmark_operator_image_name_default, true) }}"
+benchmark_operator_image_tag: "{{ lookup('env', 'benchmark_operator_image_tag') | default(benchmark_operator_image_tag_default, true) }}"
+
+benchmark_operator_release_name: "benchmark-operator"
+benchmark_operator_namespace: "benchmark-operator"
+
+benchmark_operator_manifests_path: "{{ logdir }}"
+
+# stressng benchmark
+stressng_timeout: 60
+#stressng_timeout: 12
+
+pin_to_nodes_default: True
+pin_to_nodes: "{{ lookup('env', 'pin_to_nodes') | default(pin_to_nodes_default, true) }}"
+
+# kube-burner benchmark
+kube_burner_image: "quay.io/cloud-bulldozer/kube-burner:latest"
+
+kube_burner_timeout: 60
+kube_burner_workloads_configs:
+  - workload: "node-density-heavy"        # 1 PostgreSQL deployment and 1 client deployment
+    job_iterations: 10
+#  - workload: "node-density-cni"          # 1 node.js webserver deployment and 1 client deployment
+#    job_iterations: 10
+  - workload: "max-namespaces"            # 1 PostgreSQL deployment and 5 client deployments
+    job_iterations: 5
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

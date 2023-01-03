@@ -1,0 +1,31 @@
+---
+apiVersion: ripsaw.cloudbulldozer.io/v1alpha1
+kind: Benchmark
+metadata:
+  name: stressng-{{ run_id }}-{{ test_type }}-{{ node_index }}
+  namespace: {{ benchmark_operator_namespace }}
+spec:
+  workload:
+    name: stressng
+    args:
+      # general options
+      runtype: "parallel"
+      timeout: "{{ stressng_timeout }}"
+      instances: 1
+{% if benchmark_type == 'cpu' %}
+      # cpu stressor options
+#      cpu_stressors: "0"  # stress all CPUs - ref: https://serverfault.com/a/796408
+#      cpu_percentage: "{{ cpu_percentage }}"
+      cpu_stressors: "{{ cpu_percentage  }}"  # stress selected CPUs
+      cpu_percentage: "100"
+{% else %}
+      # mem stressor options
+      vm_stressors: "1"
+#      vm_bytes: "{{ memory_percentage }}%"  # stress relative amount of memory
+      vm_bytes: "{{ 0.2 * memory_percentage|float }}g"  # stress absolute amount of memory
+{% endif %}
+{% if pin_to_nodes %}
+      # node pinning
+      pin: true
+      pin_node: {{ node_name }}
+{% endif %}

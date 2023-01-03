@@ -1,0 +1,27 @@
+---
+- hosts: control_plane
+  become: true
+  become_user: root
+
+  pre_tasks:
+    - name: "uninstall_scheduler_plugin | Load variables"
+      ansible.builtin.include_vars: vars/vars.yml
+
+  tasks:
+    - name: "uninstall_scheduler_plugin | Rename and backup current custom kube-scheduler manifest"
+      ansible.builtin.shell: "mv {{ k8s_control_plane_config_path }}/manifests/kube-scheduler.yaml {{ k8s_control_plane_config_path }}/manifests/custom-kube-scheduler.yaml"
+      ignore_errors: true
+
+    - name: "uninstall_scheduler_plugin | Backup current custom KubeSchedulerConfiguration manifest"
+      ansible.builtin.shell: "mv {{ kube_scheduler_configuration_dest_path }}/kube-scheduler-configuration.yaml {{ kube_scheduler_configuration_dest_path }}/custom-kube-scheduler-configuration.yaml"
+
+    - name: "uninstall_scheduler_plugin | Restore original kube-scheduler.yaml manifest"
+      ansible.builtin.shell: "cp {{ k8s_control_plane_config_path }}/kube-scheduler.yaml {{ k8s_control_plane_config_path }}/manifests/kube-scheduler.yaml"
+      ignore_errors: true
+
+    - name: "uninstall_scheduler_plugin | Restart kubelet to apply new scheduler manifest"
+      ansible.builtin.systemd:
+        name: kubelet
+        state: restarted
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

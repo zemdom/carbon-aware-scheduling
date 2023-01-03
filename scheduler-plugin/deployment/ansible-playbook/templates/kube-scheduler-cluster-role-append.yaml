@@ -1,0 +1,8 @@
+- apiGroups:
+    - "metrics.k8s.io"
+  resources:
+    - nodes
+  verbs:
+    - get
+    - list
+    - watch

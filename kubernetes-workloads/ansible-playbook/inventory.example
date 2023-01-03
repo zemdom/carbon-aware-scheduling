@@ -1,0 +1,7 @@
+[k8s_nodes]
+minikube
+minikube-m02
+
+[all:vars]
+ansible_connection=ssh
+ansible_user=docker

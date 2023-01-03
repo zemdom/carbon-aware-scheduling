@@ -1,0 +1,88 @@
+---
+- hosts: localhost
+  pre_tasks:
+    - name: "deploy_k8s_nodes_monitoring | Load variables"
+      ansible.builtin.include_vars: vars/vars.yaml
+
+  tasks:
+    - name: "deploy_k8s_nodes_monitoring | Add bitnami charts repository"
+      kubernetes.core.helm_repository:
+        name: bitnami
+        repo_url: https://charts.bitnami.com/bitnami
+
+#    - name: "deploy_k8s_nodes_monitoring | Enable metrics-server on minikube cluster"
+#      ansible.builtin.shell: minikube addons enable metrics-server
+
+    - name: "deploy_k8s_nodes_monitoring | Clone metrics-server-exporter repository"
+      ansible.builtin.git:
+        repo: https://github.com/olxbr/metrics-server-exporter
+        dest: "{{ metrics_server_exporter_manifests_path }}/metrics-server-exporter"
+        force: true
+
+    - name: "deploy_k8s_nodes_monitoring | Use newer rbac.authorization.k8s.io apiVersion in metrics-server-exporter manifests"
+      ansible.builtin.replace:
+        path: "{{ metrics_server_exporter_manifests_path }}/metrics-server-exporter/deploy/00-permissions-metrics-server-exporter.yaml"
+        regexp: v1beta1$
+        replace: v1
+
+    - name: "deploy_k8s_nodes_monitoring | Deploy metrics-server-exporter from local path"
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('kubernetes.core.kustomize', dir=metrics_server_exporter_manifests_path + '/metrics-server-exporter/deploy') }}"
+        namespace: "{{ metrics_server_namespace }}"
+
+    - name: "deploy_k8s_nodes_monitoring | Wait for metrics-server-exporter resources to create"
+      ansible.builtin.pause:
+        seconds: 300
+
+    - name: "deploy_k8s_nodes_monitoring | Deploy kube-prometheus chart inside monitoring namespace"
+      kubernetes.core.helm:
+        name: "{{ monitoring_release_name }}"
+        chart_ref: bitnami/kube-prometheus
+        chart_version: 8.1.7
+        release_namespace: "{{ monitoring_namespace }}"
+        create_namespace: true
+        wait: true
+        values:
+          prometheus:
+            additionalScrapeConfigs:
+              enabled: true
+              type: internal
+              internal:
+                jobList:
+                  - job_name: 'prometheus-metrics-server-exporter'
+                    kubernetes_sd_configs:
+                      - role: endpoints
+                    relabel_configs:
+                      - source_labels: [ __meta_kubernetes_service_annotation_prometheus_io_scrape ]
+                        action: keep
+                        regex: true
+                      - source_labels: [ __meta_kubernetes_service_annotation_prometheus_io_scheme ]
+                        action: replace
+                        target_label: __scheme__
+                        regex: (https?)
+                      - source_labels: [ __meta_kubernetes_service_annotation_prometheus_io_path ]
+                        action: replace
+                        target_label: __metrics_path__
+                        regex: (.+)
+                      - source_labels: [ __address__, __meta_kubernetes_service_annotation_prometheus_io_port ]
+                        action: replace
+                        target_label: __address__
+                        regex: ([^:]+)(?::\d+)?;(\d+)
+                        replacement: $1:$2
+                      - action: labelmap
+                        regex: __meta_kubernetes_service_label_(.+)
+                      - source_labels: [ __meta_kubernetes_namespace ]
+                        action: replace
+                        target_label: kubernetes_namespace
+                      - source_labels: [ __meta_kubernetes_service_name ]
+                        action: replace
+                        target_label: kubernetes_name
+                      - source_labels: [ __meta_kubernetes_pod_name ]
+                        action: replace
+                        target_label: kubernetes_pod_name
+                      - source_labels: [ __meta_kubernetes_pod_name ]
+                        action: replace
+                        target_label: pod
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

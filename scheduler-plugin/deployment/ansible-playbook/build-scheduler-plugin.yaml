@@ -1,0 +1,43 @@
+---
+- hosts: localhost
+
+  pre_tasks:
+    - name: "build_scheduler_plugin | Load variables"
+      ansible.builtin.include_vars: vars/vars.yml
+
+  tasks:
+    - name: "build_scheduler_plugin | Logout from GitHub Container Registry"
+      community.docker.docker_login:
+        registry_url: "{{ scheduler_plugin_image_registry }}"
+        state: absent
+
+    - name: "build_scheduler_plugin | Log into GitHub Container Registry"
+      community.docker.docker_login:
+        registry_url: "{{ scheduler_plugin_image_registry }}"
+        username: "{{ ghcr_user }}"
+        password: "{{ ghcr_token }}"
+
+    - name: "build_scheduler_plugin | Build and push scheduler-plugin image"
+      community.docker.docker_image:
+        name: "{{ scheduler_plugin_image_registry }}/{{ scheduler_plugin_image_name }}"
+        tag: "{{ scheduler_plugin_image_tag }}"
+        build:
+          path: "{{ playbook_dir }}/../.."
+          args:
+            TAG: "{{ scheduler_plugin_image_tag }}"
+          dockerfile: "{{ 'Dockerfile.debug' if debug else 'Dockerfile' }}"
+          nocache: yes
+        push: yes
+        source: build
+        force_source: yes # rebuild image if it already exists
+        debug: yes
+
+    - name: "build_scheduler_plugin | Logout from GitHub Container Registry"
+      community.docker.docker_login:
+        registry_url: "{{ scheduler_plugin_image_registry }}"
+        state: absent
+
+    - name: "build_scheduler_plugin | Remove scheduler-plugin Docker image from Ansible controller machine"
+      ansible.builtin.shell: docker rmi -f "{{ scheduler_plugin_image_registry }}/{{ scheduler_plugin_image_name }}:{{ scheduler_plugin_image_tag }}"
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

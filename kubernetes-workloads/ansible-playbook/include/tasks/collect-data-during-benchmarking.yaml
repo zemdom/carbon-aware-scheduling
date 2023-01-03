@@ -1,0 +1,10 @@
+---
+- name: "collect_data_during_benchmarking | Get mid-benchmarks timestamp"
+  ansible.builtin.shell: date "+%s"
+  register: mid_benchmarks_timestamp_output
+
+- name: "collect_data_during_benchmarking | Print mid-benchmarks timestamp"
+  ansible.builtin.debug:
+    msg: "Mid-benchmarks timestamp - stress-ng CPU benchmarks end time timestamp: {{ mid_benchmarks_timestamp_output.stdout }}"
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

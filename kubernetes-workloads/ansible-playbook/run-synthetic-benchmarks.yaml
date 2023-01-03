@@ -1,0 +1,39 @@
+---
+- hosts: localhost
+
+  pre_tasks:
+    - name: "run_synthetic_benchmarks | Load variables"
+      ansible.builtin.include_vars: vars/vars.yaml
+
+  tasks:
+    - ansible.builtin.include_tasks: include/tasks/collect-data-before-benchmarking.yaml
+
+    - name: "run_synthetic_benchmarks | Generate metrics data when machines are idle"
+      ansible.builtin.pause:
+        seconds: "{{ stressng_timeout }}"
+
+    - ansible.builtin.include_tasks: include/tasks/deploy-stressng-benchmark.yaml
+      vars:
+        benchmark_type: "cpu"
+        cpu_percentage: "{{ item }}"
+      with_sequence: start=10 end=100 stride=10
+
+    - ansible.builtin.include_tasks: include/tasks/collect-data-during-benchmarking.yaml
+
+    - name: "run_synthetic_benchmarks | Generate metrics data when machines are idle"
+      ansible.builtin.pause:
+        seconds: "{{ stressng_timeout }}"
+
+    - ansible.builtin.include_tasks: include/tasks/deploy-stressng-benchmark.yaml
+      vars:
+        benchmark_type: "mem"
+        memory_percentage: "{{ item }}"
+      with_sequence: start=10 end=100 stride=10
+
+    - ansible.builtin.include_tasks: include/tasks/collect-data-after-benchmarking.yaml
+
+    - ansible.builtin.include_tasks: include/tasks/scrape-k8s-nodes-metrics.yaml
+      vars:
+        time_resolution: "{{ benchmark_duration_in_minutes|int + 2 }}"
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

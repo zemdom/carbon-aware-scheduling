@@ -1,0 +1,6 @@
+[control_plane]
+minikube
+
+[all:vars]
+ansible_connection=ssh
+ansible_user=docker

@@ -1,0 +1,59 @@
+---
+- name: "collect_data_after_benchmarking | Get benchmark end time timestamp"
+  ansible.builtin.shell: date "+%s"
+  register: benchmark_end_time_output
+
+- name: "collect_data_after_benchmarking | Print benchmark end time timestamp"
+  ansible.builtin.debug:
+    msg: "Benchmarks end time timestamp: {{ benchmark_end_time_output.stdout }}"
+
+- name: "collect_data_after_benchmarking | Calculate benchmark duration time"
+  ansible.builtin.set_fact:
+    benchmark_duration_in_seconds: "{{ benchmark_end_time_output.stdout|int - benchmark_start_time_output.stdout|int }}"
+
+- name: "collect_data_after_benchmarking | Convert benchmark duration time to minutes"
+  ansible.builtin.set_fact:
+    benchmark_duration_in_minutes: "{{ (benchmark_duration_in_seconds|int / 60) | round(0, 'ceil') | int }}"
+
+- name: "collect_data_after_benchmarking | Print benchmark duration time to minutes"
+  ansible.builtin.debug:
+    msg: "Benchmark duration time: {{ benchmark_duration_in_minutes }}min"
+
+- name: "collect_data_after_benchmarking | Get all timestamps data"
+  ansible.builtin.set_fact:
+    timestamps_data: |
+      Benchmarks start: {{ benchmark_start_time_output.stdout }}
+      Benchmarks end: {{ benchmark_end_time_output.stdout }}
+      Mid-benchamrks timestamp: {{ mid_benchmarks_timestamp_output.stdout if mid_benchmarks_timestamp_output is defined else 'N/A'}}
+      Benchmarks total duration time: {{ benchmark_duration_in_minutes }}min
+
+- name: "collect_data_after_benchmarking | Create benchmarks manifests directory if does not exist"
+  ansible.builtin.file:
+    path: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests"
+    state: directory
+
+- name: "collect_data_after_benchmarking | Save all timestamps to file"
+  ansible.builtin.copy:
+    content: "{{ timestamps_data }}"
+    dest: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests/{{ run_id }}-benchmarking_timestamps.txt"
+
+- name: "collect_data_after_benchmarking | Get kube-scheduler pod logs"
+  ansible.builtin.shell: kubectl logs pod/kube-scheduler-node1 -n kube-system
+  register: kube_scheduler_logs_output
+
+- name: "collect_data_after_benchmarking | Save kube-scheduler pod logs to file"
+  ansible.builtin.copy:
+    content: "{{ kube_scheduler_logs_output.stdout }}"
+    dest: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests/{{ run_id }}-scheduler_logs.txt"
+
+#- name: "collect_data_after_benchmarking | Get benchmark run pods info (with nodes assigment)"
+#  ansible.builtin.shell: kubectl get pods -n "{{ benchmark_operator_namespace }}" -o wide | grep "{{ run_id }}"
+#  ignore_errors: yes
+#  register: benchmark_pods_info_output
+#
+#- name: "collect_data_after_benchmarking | Save scheduling decisions to file"
+#  ansible.builtin.copy:
+#    content: "{{ benchmark_pods_info_output.stdout }}"
+#    dest: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests/{{ run_id }}-benchmarking_scheduling_decisions.txt"
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

@@ -1,0 +1,7 @@
+[k8s_nodes]
+node1 # 10.0.0.115
+node2 # 10.0.0.116
+
+#[all:vars]
+#ansible_connection=ssh
+#ansible_user=docker

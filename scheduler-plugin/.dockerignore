@@ -1,0 +1,5 @@
+# Ignore every file in the entire build context
+*
+
+# Re-include directory "src"
+!src

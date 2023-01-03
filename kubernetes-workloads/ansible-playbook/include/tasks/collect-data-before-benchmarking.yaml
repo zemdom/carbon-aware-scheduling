@@ -1,0 +1,18 @@
+---
+- name: "collect_data_before_benchmarking | Generate run_id variable"
+  ansible.builtin.set_fact:
+    run_id: "{{ lookup('env', 'run_id') | default((99999999 | random | to_uuid | hash('md5'))[:4], true) }}"
+
+- name: "collect_data_before_benchmarking | Print run_id variable"
+  ansible.builtin.debug:
+    msg: "Run identifier: {{ run_id }}"
+
+- name: "collect_data_before_benchmarking | Get benchmark start time timestamp"
+  ansible.builtin.shell: date "+%s"
+  register: benchmark_start_time_output
+
+- name: "collect_data_before_benchmarking | Print benchmark start time timestamp"
+  ansible.builtin.debug:
+    msg: "Benchmarks start time timestamp: {{ benchmark_start_time_output.stdout }}"
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

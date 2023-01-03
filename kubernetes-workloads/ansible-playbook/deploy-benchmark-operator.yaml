@@ -1,0 +1,73 @@
+---
+- hosts: localhost
+  pre_tasks:
+    - name: "deploy_benchmark_operator | Load variables"
+      ansible.builtin.include_vars: vars/vars.yaml
+
+  tasks:
+    - name: "deploy_benchmark_operator | Clone benchmark-operator repository"
+      ansible.builtin.git:
+        repo: https://github.com/cloud-bulldozer/benchmark-operator
+        dest: "{{ benchmark_operator_manifests_path }}/benchmark-operator"
+        force: true
+
+    - name: "deploy_benchmark_operator | Build custom version of benchmark-operator"
+      block:
+        - name: "deploy_benchmark_operator | Logout from GitHub Container Registry"
+          community.docker.docker_login:
+            registry_url: "{{ benchmark_operator_image_registry }}"
+            state: absent
+
+        - name: "deploy_benchmark_operator | Log into GitHub Container Registry"
+          community.docker.docker_login:
+            registry_url: "{{ benchmark_operator_image_registry }}"
+            username: "{{ ghcr_user }}"
+            password: "{{ ghcr_token }}"
+
+        - name: "deploy_benchmark_operator | Use DockerHub PostgreSQL image instead of Redhat registry one"
+          ansible.builtin.replace:
+            path: "{{ benchmark_operator_manifests_path }}/benchmark-operator/roles/kube-burner/files/postgres-deployment.yml"
+            regexp: registry\.redhat\.io\/rhscl\/postgresql-10-rhel7:latest$
+            replace: bitnami/postgresql:latest
+
+        - name: "deploy_benchmark_operator | Build and push benchmark-operator from local copy of the repository"
+          ansible.builtin.shell: make image-build image-push IMG="{{ benchmark_operator_image_registry }}/{{ benchmark_operator_image_name }}:{{ benchmark_operator_image_tag }}"
+          args:
+            chdir: "{{ benchmark_operator_manifests_path }}/benchmark-operator"
+          register: build_image_output
+
+        - debug: var=build_image_output
+
+        - name: "deploy_benchmark_operator | Logout from GitHub Container Registry"
+          community.docker.docker_login:
+            registry_url: "{{ benchmark_operator_image_registry }}"
+            state: absent
+
+        - name: "deploy_benchmark_operator | Remove custom benchmark-operator Docker image from Ansible controller machine"
+          community.docker.docker_image:
+            name: "{{ benchmark_operator_image_registry }}/{{ benchmark_operator_image_name }}"
+            tag: "{{ benchmark_operator_image_tag }}"
+            state: absent
+
+      when: build_benchmark_operator
+
+   # - name: "deploy_benchmark_operator | Modify helm chart to deploy copy of benchmark-operator on each node (to avoid pods antiAffinity)"
+   #   ansible.builtin.replace:
+   #     path: "{{ benchmark_operator_manifests_path }}/benchmark-operator/charts/benchmark-operator/templates/operator.yaml"
+   #     regexp: "replicas: 1$"
+   #     replace: "replicas: {{ groups['k8s_nodes'] | length }}"
+
+    - name: "deploy_benchmark_operator | Deploy benchmark-operator from local path"
+      kubernetes.core.helm:
+        name: "{{ benchmark_operator_release_name }}"
+        chart_ref: "{{ benchmark_operator_manifests_path }}/benchmark-operator/charts/benchmark-operator"
+        release_namespace: "{{ benchmark_operator_namespace }}"
+        create_namespace: true
+        values:
+          operator:
+            image:
+              repository: "{{ benchmark_operator_image_registry }}/{{ benchmark_operator_image_name }}"
+              tag: "{{ benchmark_operator_image_tag }}"
+            # replicaCount: 2
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

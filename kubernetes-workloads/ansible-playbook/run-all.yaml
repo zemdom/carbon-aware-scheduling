@@ -1,0 +1,8 @@
+---
+- ansible.builtin.import_playbook: deploy-k8s-nodes-monitoring.yaml
+- ansible.builtin.import_playbook: deploy-benchmark-operator.yaml
+- ansible.builtin.import_playbook: run-synthetic-benchmarks.yaml
+- ansible.builtin.import_playbook: run-workload-benchmarks.yaml
+#- ansible.builtin.import_playbook: uninstall-k8s-nodes-monitoring.yaml
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

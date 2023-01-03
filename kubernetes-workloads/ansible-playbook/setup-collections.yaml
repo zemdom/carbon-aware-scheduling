@@ -1,0 +1,7 @@
+---
+- hosts: localhost
+  tasks:
+    - name: "setup_collections | Install required Ansible collections"
+      ansible.builtin.shell: "ansible-galaxy collection install -r {{ playbook_dir }}/utils/collection-requirements.yaml"
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

@@ -1,0 +1,35 @@
+---
+- hosts: localhost
+
+  pre_tasks:
+    - name: "run_workload_benchmarks | Load variables"
+      ansible.builtin.include_vars: vars/vars.yaml
+
+  tasks:
+    - name: "run_workload_benchmarks | Label all nodes with worker label to match default kube-burner nodeSelector"
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: Node
+          metadata:
+            labels:
+              node-role.kubernetes.io/worker: ""  # default nodeSelector seems to be hardcoded
+            name: "{{ item }}"
+        state: patched
+      with_items: "{{ groups['k8s_nodes'] }}"
+
+    - ansible.builtin.include_tasks: include/tasks/collect-data-before-benchmarking.yaml
+
+    - ansible.builtin.include_tasks: include/tasks/deploy-kube-burner-benchmark.yaml
+      vars:
+        kube_burner_workload: "{{ item.workload }}"
+        job_iterations: "{{ item.job_iterations }}"
+      with_items: "{{ kube_burner_workloads_configs }}"
+
+    - ansible.builtin.include_tasks: include/tasks/collect-data-after-benchmarking.yaml
+
+    - ansible.builtin.include_tasks: include/tasks/scrape-k8s-nodes-metrics.yaml
+      vars:
+        time_resolution: "{{ benchmark_duration_in_minutes|int + 2 }}"
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

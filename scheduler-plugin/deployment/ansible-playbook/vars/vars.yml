@@ -1,0 +1,21 @@
+---
+# general
+kube_scheduler_configuration_dest_path: "/etc/kubernetes"
+k8s_control_plane_config_path: "/etc/kubernetes"
+power_model_dir_path: "/etc/power_models"
+
+# custom scheduler image specifc
+scheduler_plugin_image_registry_default: "ghcr.io"
+scheduler_plugin_image_name_default: "zemdom/carbon-scheduler-plugin"
+scheduler_plugin_image_tag_default: "v0.0.4"
+scheduler_plugin_image_registry: "{{ lookup('env', 'scheduler_plugin_image_registry') | default(scheduler_plugin_image_registry_default, true) }}"
+scheduler_plugin_image_name: "{{ lookup('env', 'scheduler_plugin_image_name') | default(scheduler_plugin_image_name_default, true) }}"
+scheduler_plugin_image_tag: "{{ lookup('env', 'scheduler_plugin_image_tag') | default(scheduler_plugin_image_tag_default, true) }}"
+
+scheduler_plugin_image: "{{ scheduler_plugin_image_registry }}/{{ scheduler_plugin_image_name }}:{{ scheduler_plugin_image_tag }}"
+scheduler_plugin_image_pull_policy: "Always"
+
+debug: "{{ lookup('env', 'debug') | default(debug_default, true) }}"
+debug_default: False
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

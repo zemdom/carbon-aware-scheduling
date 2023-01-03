@@ -1,0 +1,88 @@
+---
+- name: "deploy_kube_burner_benchmark | Create benchmarks manifests directory if does not exist"
+  ansible.builtin.file:
+    path: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests"
+    state: directory
+
+- name: "deploy_kube_burner_benchmark | Create benchmark CustomResource manifest from template"
+  ansible.builtin.blockinfile:
+    insertafter: EOF
+    path: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests/kube-burner-custom-resource-{{ run_id }}-{{ kube_burner_workload }}.yaml"
+    block: "{{ lookup('template', 'kube-burner-cr.yaml.j2') }}"
+    marker: ""
+    create: yes
+
+- name: "deploy_kube_burner_benchmark | Deploy benchmark CustomResource"
+  kubernetes.core.k8s:
+    src: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests/kube-burner-custom-resource-{{ run_id }}-{{ kube_burner_workload }}.yaml"
+    state: present
+  register: deploy_benchmark_output
+
+- name: "deploy_kube_burner_benchmark | Extract benchmark resource names"
+  ansible.builtin.set_fact:
+    benchmark_resource_name: "{{ deploy_benchmark_output.result.metadata.name }}"
+
+- name: "deploy_kube_burner_benchmark | Wait for benchmark resources to be running"
+  ansible.builtin.shell: kubectl get "benchmark.ripsaw.cloudbulldozer.io/{{ benchmark_resource_name }}" -n benchmark-operator | grep Running
+  register: benchmark_resource_running
+  until: benchmark_resource_running is succeeded
+  delay: 15
+  retries: 100
+
+- name: "deploy_kube_burner_benchmark | Get benchmark job uuid info"
+  ansible.builtin.shell: kubectl describe "benchmark.ripsaw.cloudbulldozer.io/{{ benchmark_resource_name }}" -n benchmark-operator | grep "Suuid:" | awk '{print $2}'
+  register: benchmark_job_uuid_output
+
+- name: "deploy_kube_burner_benchmark | Extract benchmark jobs uuid"
+  ansible.builtin.set_fact:
+    benchmark_job_uuid: "{{ benchmark_job_uuid_output.stdout }}"
+
+- name: "deploy_kube_burner_benchmark | Calculate benchmark job name"
+  ansible.builtin.set_fact:
+    benchmark_job_name: "{{ 'kube-burner-' + benchmark_job_uuid }}"
+
+- debug: var=benchmark_job_name
+
+- name: "deploy_kube_burner_benchmark | Wait for benchmark job to finish"
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Job
+    namespace: "{{ benchmark_operator_namespace }}"
+    name: "{{ benchmark_job_name }}"
+    wait: yes
+    wait_condition:
+      type: Complete
+      status: "True"
+    wait_sleep: 30
+    wait_timeout: 36000
+
+- name: "deploy_kube_burner_benchmark | Wait for all benchmark custom resources to complete"
+  ansible.builtin.pause:
+    seconds: 20
+
+- name: "deploy_kube_burner_benchmark | Get benchmark run pods info (with nodes assigment) in all benchmark namespaces"
+  ansible.builtin.shell: for namespace in $(kubectl get namespaces | grep "{{ kube_burner_workload }}" | awk '{print $1}'); do kubectl get pods -o wide --namespace $namespace; done
+  ignore_errors: yes
+  register: benchmark_pods_info_output
+
+- debug: var=benchmark_pods_info_output.results
+
+- name: "deploy_kube_burner_benchmark | Save scheduling decisions to file"
+  ansible.builtin.lineinfile:
+    line: "{{ benchmark_pods_info }}"
+    path: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests/{{ run_id }}-benchmarking_scheduling_decisions.txt"
+    create: yes
+  loop: "{{ benchmark_pods_info_output.stdout_lines }}"
+  loop_control:
+    loop_var: benchmark_pods_info
+
+- name: "deploy_kube_burner_benchmark | Remove workload namespace and all created resources"
+  ansible.builtin.shell: kubectl get namespaces -l kube-burner-job="{{ kube_burner_workload }}" --no-headers=true -o custom-columns=:metadata.name | xargs kubectl delete namespace
+
+- name: "deploy_kube_burner_benchmark | Remove benchmark job"
+  ansible.builtin.shell: kubectl delete job/"{{ benchmark_job_name }}" -n "{{ benchmark_operator_namespace }}"
+
+- name: "deploy_kube_burner_benchmark | Remove benchmark resource"
+  ansible.builtin.shell: kubectl delete benchmark/"kube-burner-{{ kube_burner_workload }}-{{ run_id }}" -n "{{ benchmark_operator_namespace }}"
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

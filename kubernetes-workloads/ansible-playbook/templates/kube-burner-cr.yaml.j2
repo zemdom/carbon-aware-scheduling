@@ -1,0 +1,28 @@
+---
+apiVersion: ripsaw.cloudbulldozer.io/v1alpha1
+kind: Benchmark
+metadata:
+  name: kube-burner-{{ kube_burner_workload }}-{{ run_id }}
+  namespace: {{ benchmark_operator_namespace }}
+spec:
+  workload:
+    name: kube-burner
+    args:
+      workload: {{ kube_burner_workload }}
+      cleanup: true                             # delete old namespaces for the selected workload before starting benchmark
+      job_iterations: {{ job_iterations }}
+      wait_when_finished: true                  # wait for pods to be running before finishing kube-burner workload
+      pod_wait: true                            # wait for all pods to be running before moving forward to the next job iteration
+      image: {{ kube_burner_image }}
+      qps: 25                                   # queries per second
+      burst: 50                                 # max number of burst queries to perform
+      log_level: info
+      verify_objects: true                      # verify object creation
+      error_on_verify: true                     # exit w/o indexing if a verify error happened
+#      job_timeout: {{ kube_burner_timeout }}
+      node_selector:                            # override default node-role.kubernetes.io/worker= nodeSelector
+        key: kubernetes.io/os
+        value: linux
+#      tolerations:
+#      - key: node-role.kubernetes.io/master
+#        effect: NoSchedule

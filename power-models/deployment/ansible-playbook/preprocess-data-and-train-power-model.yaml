@@ -1,0 +1,12 @@
+---
+- hosts: localhost
+
+  pre_tasks:
+    - name: "train_power_model | Load variables"
+      ansible.builtin.include_vars: vars/vars.yaml
+
+  tasks:
+    - name: "train_power_model | Train power model"
+      ansible.builtin.command: python3 "{{ playbook_dir }}/../../power_models/main.py" {{ scraped_nodes_metrics_dir_path }} {{ logdir }}/{{ run_id }} {{ run_id }} {{ only_preprocess_data }} {{ epochs }} {{ use_memory_feature }} {{ create_piecewise_linear_cpu_model }}
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

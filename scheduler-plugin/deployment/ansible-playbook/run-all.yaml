@@ -1,0 +1,6 @@
+---
+- import_playbook: build-scheduler-plugin.yaml
+- import_playbook: deploy-scheduler-plugin.yaml
+#- import_playbook: uninstall-scheduler-plugin.yaml
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

@@ -1,0 +1,26 @@
+---
+- hosts: localhost
+  pre_tasks:
+    - name: "uninstall_k8s_nodes_monitoring | Load variables"
+      ansible.builtin.include_vars: vars/vars.yaml
+
+  tasks:
+    - name: "uninstall_k8s_nodes_monitoring | Uninstall kube-prometheus release"
+      kubernetes.core.helm:
+        name: "{{ monitoring_release_name }}"
+        release_namespace: "{{ monitoring_namespace }}"
+        state: absent
+        wait: true
+
+    - name: "uninstall_k8s_nodes_monitoring | Delete metrics-server-exporter resources"
+      ansible.builtin.shell: kubectl delete -k "{{ metrics_server_exporter_manifests_path }}/metrics-server-exporter/deploy"
+
+# TODO - deploy on bare-metal k8s cluster
+#    - name: "uninstall_k8s_nodes_monitoring | Uninstall metrics-server release"
+#      kubernetes.core.helm:
+#        name: "{{ metrics_server_release_name }}"
+#        release_namespace: "{{ metrics_server_namespace }}"
+#        state: absent
+#        wait: true
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

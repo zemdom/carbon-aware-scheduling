@@ -1,0 +1,21 @@
+FROM golang:1.18-buster
+
+ARG TAG
+
+# download and install Tensorflow C library
+RUN curl -L "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.9.1.tar.gz" | tar -C /usr/local -xz && ldconfig
+
+# build Delve debugger
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+WORKDIR /go/src/sigs.k8s.io/scheduler-plugin
+COPY ./src .
+RUN go build -ldflags "-X k8s.io/component-base/version.gitVersion=${TAG}" -gcflags "all=-N -l" -o bin/kube-scheduler main.go
+
+RUN mv /go/bin/dlv /usr/local/bin/dlv
+RUN mv /go/src/sigs.k8s.io/scheduler-plugin/bin/kube-scheduler /usr/local/bin/kube-scheduler && rm -rf /go/src/sigs.k8s.io/scheduler-plugin
+
+# expose port for Delve debugger
+EXPOSE 40000
+
+CMD ["dlv", "--continue", "--accept-multiclient", "--api-version=2", "--headless", "--listen=:40000", "--log", "exec", "/usr/local/bin/kube-scheduler"]

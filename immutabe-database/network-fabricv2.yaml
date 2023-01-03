@@ -1,0 +1,169 @@
+##############################################################################################
+#  Copyright Accenture. All Rights Reserved.
+#
+#  SPDX-License-Identifier: Apache-2.0
+##############################################################################################
+
+---
+network:
+  # Network level configuration specifies the attributes required for each organization
+  # to join an existing network.
+  type: fabric
+  version: 2.2.2                 # currently tested 1.4.8 and 2.2.2
+
+  frontend: enabled #Flag for frontend to enabled for nodes/peers
+
+  #Environment section for Kubernetes setup
+  env:
+    type: "minikube"              # tag for the environment. Important to run multiple flux on single cluster
+    proxy: haproxy                  # values can be 'haproxy' or 'ambassador'
+    retry_count: 20                 # Retry count for the checks
+    external_dns: disabled           # Should be enabled if using external-dns for automatic route configuration
+    annotations:              # Additional annotations that can be used for some pods (ca, ca-tools, orderer and peer nodes)
+      service:
+        - example1: example2
+      deployment: {}
+      pvc: {}
+
+  # Docker registry details where images are stored. This will be used to create k8s secrets
+  # Please ensure all required images are built and stored in this registry.
+  # Do not check-in docker_password.
+  docker:
+    url: "ghcr.io/hyperledger"
+
+  # Remote connection information for orderer (will be blank or removed for orderer hosting organization)
+  # For RAFT consensus, have odd number (2n+1) of orderers for consensus agreement to have a majority.
+  orderers:
+    - orderer:
+      type: orderer
+      name: orderer1
+      org_name: supplychain               #org_name should match one organization definition below in organizations: key
+      uri: orderer1.org1ambassador.blockchaincloudpoc.com:8443   # Can be external or internal URI for orderer which should be reachable by all peers
+      certificate: {{ path_to_bevel_repository }}/bevel/build/orderer1.crt        # Ensure that the directory exists
+    - orderer:
+      type: orderer
+      name: orderer2
+      org_name: supplychain               #org_name should match one organization definition below in organizations: key
+      uri: orderer2.org1ambassador.blockchaincloudpoc.com:8443   # Can be external or internal URI for orderer which should be reachable by all peers
+      certificate: {{ path_to_bevel_repository }}/bevel/build/orderer2.crt           # Ensure that the directory exists
+    - orderer:
+      type: orderer
+      name: orderer3
+      org_name: supplychain               #org_name should match one organization definition below in organizations: key
+      uri: orderer3.org1ambassador.blockchaincloudpoc.com:8443   # Can be external or internal URI for orderer which should be reachable by all peers
+      certificate: {{ path_to_bevel_repository }}/bevel/build/orderer3.crt           # Ensure that the directory exists
+
+  # The channels defined for a network with participating peers in each channel
+  channels:
+    - channel:
+      consortium: SupplyChainConsortium
+      channel_name: AllChannel
+      orderer:
+        name: supplychain
+      participants:
+        - organization:
+          name: carrier
+          type: creator       # creator organization will create the channel and instantiate chaincode, in addition to joining the channel and install chaincode
+          org_status: new
+          peers:
+            - peer:
+              name: peer0
+              gossipAddress: peer0.carrier-net.org3ambassador.blockchaincloudpoc.com:8443  # External or internal URI of the gossip peer
+              peerAddress: peer0.carrier-net.org3ambassador.blockchaincloudpoc.com:8443 # External URI of the peer
+          ordererAddress: orderer1.org1ambassador.blockchaincloudpoc.com:8443             # External or internal URI of the orderer
+      endorsers:
+        # Only one peer per org required for endorsement
+        - organization:
+          name: carrier
+          peers:
+            - peer:
+              name: peer0
+              corepeerAddress: peer0.carrier-net.org3ambassador.blockchaincloudpoc.com:8443
+              certificate: "{{ path_to_bevel_repository }}/ca.crt" # certificate path for peer
+      genesis:
+        name: OrdererGenesis
+
+  # Allows specification of one or many organizations that will be connecting to a network.
+  # If an organization is also hosting the root of the network (e.g. doorman, membership service, etc),
+  # then these services should be listed in this section as well.
+  organizations:
+
+    # Specification for the 1st organization. Each organization maps to a VPC and a separate k8s cluster
+    - organization:
+      name: supplychain
+      country: UK
+      state: London
+      location: London
+      subject: "O=Orderer,L=51.50/-0.13/London,C=GB"
+      type: orderer
+      external_url_suffix: org1ambassador.blockchaincloudpoc.com
+      org_status: new
+      fabric_console: enabled               # To deploy Fabric console for this organization
+      ca_data:
+        url: ca.supplychain-net.org1ambassador.blockchaincloudpoc.com:8443
+        certificate: {{ path_to_bevel_repository }}/server.crt        # This has not been implemented in 0.2.0.0
+
+      cloud_provider: minikube   # Options: aws, azure, gcp, digitalocean, minikube
+
+      # Kubernetes cluster deployment variables. The config file path and name has to be provided in case
+      # the cluster has already been created.
+      k8s:
+        region: "cluster_region"
+        context: "default"
+        config_file: "{{ path_to_bevel_repository }}/bevel/build/kubeconfig.yaml"
+
+      # Hashicorp Vault server address and root-token. Vault should be unsealed.
+      # Do not check-in root_token
+      vault:
+        url: "http://vault:8200"
+        root_token: "{{ root_token }}"
+        secret_path: "secrets"
+      # Git Repo details which will be used by GitOps/Flux.
+      # Do not check-in git_access_token
+      gitops:
+        git_protocol: "https" # Option for git over https or ssh
+        git_url: "https://github.com/{{ github_user }}/bevel"         # Gitops https or ssh url for flux value files
+        branch: "main"           # Git branch where release is being made
+        release_dir: "platforms/hyperledger-fabric/releases/dev" # Relative Path in the Git repo for flux sync per environment.
+        chart_source: "platforms/hyperledger-fabric/charts"     # Relative Path where the Helm charts are stored in Git repo
+        git_repo: "github.com/{{ github_user }}/bevel"   # Gitops git repository URL for git push  (without https://)
+        username: "{{ github_user }}"          # Git Service user who has rights to check-in in all branches
+        password: "{{ repo_access_token }}"          # Git Server user password/token (Optional for ssh; Required for https)
+        email: "{{ github_email }}"                # Email to use in git config
+        private_key: "{{ path_to_bevel_repository }}/bevel/build/gitops"          # Path to private key file which has write-access to the git repo (Optional for https; Required for ssh)
+
+      # Services maps to the pods that will be deployed on the k8s cluster
+      # This sample is an orderer service and includes a zk-kafka consensus
+      services:
+        ca:
+          name: ca
+          subject: "/C=GB/ST=London/L=London/O=Orderer/CN=ca.supplychain-net.org1ambassador.blockchaincloudpoc.com"
+          type: ca
+          grpc:
+            port: 7054
+
+        consensus:
+          name: raft
+
+        orderers:
+          # This sample has multiple orderers as an example.
+          # You can use a single orderer for most production implementations.
+          # For RAFT consensus, have odd number (2n+1) of orderers for consensus agreement to have a majority.
+          - orderer:
+            name: orderer1
+            type: orderer
+            consensus: raft
+            grpc:
+              port: 7050
+          - orderer:
+            name: orderer2
+            type: orderer
+            consensus: raft
+            grpc:
+              port: 7050
+          - orderer:
+            name: orderer3
+            type: orderer
+            consensus: raft
+            grpc:
+              port: 7050

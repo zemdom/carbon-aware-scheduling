@@ -1,0 +1,18 @@
+---
+# general
+logdir: "/home/ubuntu/logdir"
+run_id: "{{ lookup('env', 'run_id') }}"
+scraped_nodes_metrics_dir_path: "{{ logdir }}/{{ run_id }}/{{ run_id }}_prometheus_data/{{ run_id }}_node_resources_info.json"
+
+# training parameters
+create_piecewise_linear_cpu_model_default: False
+epochs_default: 300
+only_preprocess_data_default: False
+use_memory_feature_default: True
+
+create_piecewise_linear_cpu_model: "{{ lookup('env', 'create_piecewise_linear_cpu_model') | default(create_piecewise_linear_cpu_model_default, true) }}"
+epochs: "{{ lookup('env', 'epochs') | default(epochs_default, true) }}"
+only_preprocess_data: "{{ lookup('env', 'only_preprocess_data') | default(only_preprocess_data_default, true) }}"
+use_memory_feature: "{{ lookup('env', 'use_memory_feature') | default(use_memory_feature_default, true) }}"
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

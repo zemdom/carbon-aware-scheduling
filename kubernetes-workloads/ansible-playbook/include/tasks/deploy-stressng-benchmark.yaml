@@ -1,0 +1,164 @@
+---
+- name: "deploy_stressng_benchmark | Clear variables"
+  ansible.builtin.set_fact:
+    nodes_names: []
+    deploy_benchmark_output: []
+    benchmark_resource_names: []
+    benchmark_jobs_uuids: []
+    benchmark_jobs_names: []
+
+- name: "deploy_stressng_benchmark | Create benchmarks manifests directory if does not exist"
+  ansible.builtin.file:
+    path: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests"
+    state: directory
+
+- name: "deploy_stressng_benchmark | Get test type"
+  ansible.builtin.set_fact:
+    test_type: "{{ benchmark_type }}{{ cpu_percentage if benchmark_type == 'cpu' else memory_percentage }}"
+
+- name: "deploy_stressng_benchmark | Get tested nodes names"
+  ansible.builtin.set_fact:
+    nodes_names: "{{ nodes_names | default([]) + [ node_name if pin_to_nodes else ('not-pinned' + node_index|string) ] }}"
+  loop: "{{ groups['k8s_nodes'] }}"
+  loop_control:
+    loop_var: node_name
+    index_var: node_index
+  when: not previous_run_id
+
+- name: "Load assigned nodes names from logfile when rerunning testcase"
+  block:
+
+  - name: "deploy_stressng_benchmark | Get assigned nodes names from logfile when rerunning testcase"
+    ansible.builtin.shell: awk {'print $1, $7'} "{{ benchmark_operator_manifests_path }}/{{ previous_run_id }}/benchmark-manifests/{{ previous_run_id }}-benchmarking_scheduling_decisions.txt" | grep "{{ test_type }}-" | awk -F "{{ previous_run_id }}" {'print $2'} | awk -F "-workload" {'print $1, $2'} | awk {'print $1, $3'} | sort -V | awk {'print $2'}
+    register: loaded_node_names_output
+
+  - name: "deploy_stressng_benchmark | Get assigned nodes names when rerunning testcase"
+    ansible.builtin.set_fact:
+      nodes_names: "{{ nodes_names | default([]) + [ node_name ] }}"
+    loop: "{{ loaded_node_names_output.stdout_lines }}"
+    loop_control:
+      loop_var: node_name
+
+  when: previous_run_id
+
+- name: "deploy_stressng_benchmark | Create benchmark CustomResource manifest from template"
+  ansible.builtin.blockinfile:
+    insertafter: EOF
+    path: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests/stressng-custom-resource-{{ run_id }}-{{ node_name | replace('.', '-') }}-{{ test_type }}.yaml"
+    block: "{{ lookup('template', 'stressng-cr.yaml.j2') }}"
+    marker: ""
+    create: yes
+  loop: "{{ nodes_names }}"
+  loop_control:
+    loop_var: node_name
+    index_var: node_index
+
+- name: "deploy_stressng_benchmark | Deploy benchmark CustomResource"
+  kubernetes.core.k8s:
+    src: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests/stressng-custom-resource-{{ run_id }}-{{ node_name | replace('.', '-') }}-{{ test_type }}.yaml"
+    state: present
+  loop: "{{ nodes_names[:1] }}"
+  loop_control:
+    loop_var: node_name
+  register: deploy_benchmark_output_results
+
+- ansible.builtin.set_fact:
+    deploy_benchmark_output: "{{ deploy_benchmark_output + [ deploy_benchmark_output_item ] }}"
+  loop: "{{ deploy_benchmark_output_results.results }}"
+  loop_control:
+    loop_var: deploy_benchmark_output_item
+
+- ansible.builtin.pause:
+    seconds: "{{ 0 if pin_to_nodes else 40 }}"
+
+- name: "deploy_stressng_benchmark | Deploy benchmark CustomResource"
+  kubernetes.core.k8s:
+    src: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests/stressng-custom-resource-{{ run_id }}-{{ node_name | replace('.', '-') }}-{{ test_type }}.yaml"
+    state: present
+  loop: "{{ nodes_names[1:] }}"
+  loop_control:
+    loop_var: node_name
+  register: deploy_benchmark_output_results
+
+- ansible.builtin.set_fact:
+    deploy_benchmark_output: "{{ deploy_benchmark_output + [ deploy_benchmark_output_item ] }}"
+  loop: "{{ deploy_benchmark_output_results.results }}"
+  loop_control:
+    loop_var: deploy_benchmark_output_item
+
+- name: "deploy_stressng_benchmark | Extract benchmark resource names"
+  ansible.builtin.set_fact:
+    benchmark_resource_names: "{{ benchmark_resource_names | default([]) + [ deploy_output.result.metadata.name ] }}"
+  loop: "{{ deploy_benchmark_output.results }}"
+  loop_control:
+    loop_var: deploy_output
+
+- name: "deploy_stressng_benchmark | Wait for benchmark resources to be running"
+  ansible.builtin.shell: kubectl get "benchmark.ripsaw.cloudbulldozer.io/{{ benchmark_resource_name }}" -n benchmark-operator | grep Running
+  loop: "{{ benchmark_resource_names }}"
+  loop_control:
+    loop_var: benchmark_resource_name
+  register: benchmark_resource_running
+  until: benchmark_resource_running is succeeded
+  delay: 15
+  retries: 16
+  ignore_errors: yes
+
+- block:
+
+  - name: "deploy_stressng_benchmark | Get benchmark jobs uuids info"
+    ansible.builtin.shell: kubectl describe "benchmark.ripsaw.cloudbulldozer.io/{{ benchmark_resource_name }}" -n benchmark-operator | grep "Suuid:" | awk '{print $2}'
+    loop: "{{ benchmark_resource_names }}"
+    loop_control:
+      loop_var: benchmark_resource_name
+    register: benchmark_jobs_uuids_output
+
+  - name: "deploy_stressng_benchmark | Extract benchmark jobs uuids"
+    ansible.builtin.set_fact:
+      benchmark_jobs_uuids: "{{ benchmark_jobs_uuids | default([]) + [ benchmark_job_uuid_output.stdout ] }}"
+    loop: "{{ benchmark_jobs_uuids_output.results }}"
+    loop_control:
+      loop_var: benchmark_job_uuid_output
+
+  - name: "deploy_stressng_benchmark | Calculate benchmark jobs names"
+    ansible.builtin.set_fact:
+      benchmark_jobs_names: "{{ benchmark_resource_names | zip(benchmark_jobs_uuids) | map('join', '-workload-') | list }}"
+
+  - name: "deploy_stressng_benchmark | Wait for benchmark jobs to finish"
+    kubernetes.core.k8s_info:
+      api_version: v1
+      kind: Job
+      namespace: "{{ benchmark_operator_namespace }}"
+      name: "{{ benchmark_job_name }}"
+      wait: yes
+      wait_condition:
+        type: Complete
+        status: "True"
+      wait_sleep: 30
+      wait_timeout: "{{ 120 + stressng_timeout }}"
+    loop: "{{ benchmark_jobs_names }}"
+    loop_control:
+      loop_var: benchmark_job_name
+
+  - name: "deploy_stressng_benchmark | Wait for all benchmark custom resources to complete"
+    ansible.builtin.pause:
+      seconds: 20
+
+  - name: "deploy_stressng_benchmark | Get benchmark run pods info (with nodes assigment)"
+    ansible.builtin.shell: kubectl get pods -n "{{ benchmark_operator_namespace }}" -o wide | grep "{{ run_id }}"
+    ignore_errors: yes
+    register: benchmark_pods_info_output
+
+  - name: "deploy_stressng_benchmark | Save scheduling decisions to file"
+    ansible.builtin.lineinfile:
+      line: "{{ benchmark_pods_info_output.stdout }}"
+      path: "{{ benchmark_operator_manifests_path }}/{{ run_id }}/benchmark-manifests/{{ run_id }}-benchmarking_scheduling_decisions.txt"
+      create: yes
+  when: benchmark_resource_running is succeeded
+
+- name: "deploy_stressng_benchmark | Remove benchmark resource"
+  ansible.builtin.shell: kubectl delete "benchmark.ripsaw.cloudbulldozer.io/{{ benchmark_resource_name }}" -n benchmark-operator
+  loop_control:
+    loop_var: benchmark_resource_name
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible

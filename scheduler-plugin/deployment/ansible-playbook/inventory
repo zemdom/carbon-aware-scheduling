@@ -1,0 +1,6 @@
+[control_plane]
+node1 # 10.0.0.115
+
+#[all:vars]
+#ansible_connection=ssh
+#ansible_user=docker

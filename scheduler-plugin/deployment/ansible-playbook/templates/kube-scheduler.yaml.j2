@@ -1,0 +1,91 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    component: kube-scheduler
+    tier: control-plane
+  name: kube-scheduler
+  namespace: kube-system
+spec:
+  containers:
+  - command:
+{% if debug %}
+    - dlv
+    - --continue
+    - --accept-multiclient
+    - --api-version=2
+    - --headless
+    - --listen=:40000
+    - --log
+    - exec
+{% endif %}
+    - /usr/local/bin/kube-scheduler
+{% if debug %}
+    - --
+{% endif %}
+    - --authentication-kubeconfig=/etc/kubernetes/scheduler.conf
+    - --authorization-kubeconfig=/etc/kubernetes/scheduler.conf
+    - --bind-address=0.0.0.0
+    - --kubeconfig=/etc/kubernetes/scheduler.conf
+    - --leader-elect=true
+    - --config={{ kube_scheduler_configuration_dest_path }}/kube-scheduler-configuration.yaml
+    - -v=2
+    image: {{ scheduler_plugin_image }}
+    imagePullPolicy: {{ scheduler_plugin_image_pull_policy }}
+    livenessProbe:
+      failureThreshold: 8
+      httpGet:
+        path: /healthz
+        port: 10259
+        scheme: HTTPS
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 15
+    name: kube-scheduler
+    resources:
+      requests:
+        cpu: 100m
+    startupProbe:
+      failureThreshold: 30
+      httpGet:
+        path: /healthz
+        port: 10259
+        scheme: HTTPS
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 15
+{% if debug %}
+    ports:
+    - containerPort: 40000
+{% endif %}
+    volumeMounts:
+    - mountPath: /etc/kubernetes/scheduler.conf
+      name: kubeconfig
+      readOnly: true
+    - mountPath: {{ kube_scheduler_configuration_dest_path }}/kube-scheduler-configuration.yaml
+      name: carbon-scheduler-config
+      readOnly: true
+    - mountPath: /etc/power_models # TODO - use PersistentVolume instead of host local path
+      name: power-models
+      readOnly: true
+  hostNetwork: true
+  priorityClassName: system-node-critical
+  securityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  volumes:
+  - hostPath:
+      path: /etc/kubernetes/scheduler.conf
+      type: FileOrCreate
+    name: kubeconfig
+  - hostPath:
+      path: {{ kube_scheduler_configuration_dest_path }}/kube-scheduler-configuration.yaml
+      type: File
+    name: carbon-scheduler-config
+  - hostPath: # TODO - use PersistentVolume instead of host local path
+      path: {{ power_model_dir_path }}
+      type: Directory
+    name: power-models
+status: {}

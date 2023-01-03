@@ -1,0 +1,53 @@
+---
+- hosts: control_plane
+  become: true
+  become_user: root
+
+  pre_tasks:
+    - name: "deploy_scheduler_plugin | Load variables"
+      ansible.builtin.include_vars: vars/vars.yml
+
+  tasks:
+    #    - name: "deploy_scheduler_plugin | Copy power models to master"
+    #    scp -r "/home/dominika/Documents/sem.3 mgr/magisterka/carbon-scheduling/power-models/power_models/test-run-metrics-server" root@192.168.49.2:/etc/power_models
+
+    - name: "deploy_scheduler_plugin | Backup current kube-scheduler.yaml manifest"
+      ansible.builtin.shell: "cp {{ k8s_control_plane_config_path }}/manifests/kube-scheduler.yaml {{ k8s_control_plane_config_path }}/kube-scheduler.yaml"
+      ignore_errors: true
+
+    - name: "deploy_scheduler_plugin | Copy KubeSchedulerConfiguration manifest to master"
+      ansible.builtin.template:
+        src: ./templates/kube-scheduler-configuration.yaml.j2
+        dest: "{{ kube_scheduler_configuration_dest_path }}/kube-scheduler-configuration.yaml"
+
+#    - name: "deploy_scheduler_plugin | Remove scheduler-plugin Docker image present on a machine (so the new version can pulled)"
+#      ansible.builtin.shell: docker rmi -f "{{ scheduler_plugin_image_registry }}/{{ scheduler_plugin_image_name }}:{{ scheduler_plugin_image_tag }}"
+    #      docker_image:
+    #        name: "{{ scheduler_plugin_image_registry }}/{{ scheduler_plugin_image_name }}"
+    #        tag: "{{ scheduler_plugin_image_tag }}"
+    #        state: absent
+
+    - name: "deploy_scheduler_plugin | Copy modified kube-scheduler manifest to control plane node"
+      ansible.builtin.template:
+        src: ./templates/kube-scheduler.yaml.j2
+        dest: "/{{ k8s_control_plane_config_path }}/manifests/kube-scheduler.yaml"
+
+    - name: "deploy_scheduler_plugin | Restart kubelet to apply new scheduler manifest"
+      ansible.builtin.systemd:
+        name: kubelet
+        state: restarted
+
+
+- hosts: localhost
+
+  pre_tasks:
+    - name: "deploy_scheduler_plugin | Load variables"
+      ansible.builtin.include_vars: vars/vars.yml
+
+  tasks:
+    - name: "deploy_scheduler_plugin | Allow kube-scheduler to access metrics-server"  # ref: https://stackoverflow.com/a/58059464
+      ansible.builtin.shell: kubectl apply -f <(cat <(kubectl get clusterrole system:kube-scheduler -o yaml) "{{ playbook_dir }}/templates/kube-scheduler-cluster-role-append.yaml")
+      args:
+        executable: /bin/bash
+
+# vi:et:sw=2 ts=2 sts=2 ft=ansible
