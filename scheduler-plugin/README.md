@@ -1,4 +1,4 @@
-# carbon-scheduling - kube-scheduler plugin
+# carbon-aware-scheduling - kube-scheduler plugin
 
 This directory contains source code of `kube-scheduler` plugins implemented in Golang and scripts, manifests and
 Dockerfiles needed to deploy them to Kubernetes cluster.
