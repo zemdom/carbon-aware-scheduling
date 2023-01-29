@@ -1,4 +1,4 @@
-# carbon-scheduling - deploying extended kube-scheduler
+# carbon-aware-scheduling - deploying extended kube-scheduler
 
 Ansible playbooks contained in this directory can be used for building and deploying custom `kube-scheduler` image -
 extended with own Kubernetes Scheduling Framework plugins.
