@@ -1,6 +1,6 @@
-# carbon-scheduling
+# carbon-aware-scheduling
 
-The repository consists of:
+The repository contains custom carbon-aware Kubernetes scheduler, which distributes k8s jobs to servers generating the least amount of carbon emissions. It consists of:
 * [`carbon-footprint-data`](./carbon-footprint-data) subdirectory, which contains description of carbon intensity data from electricityMap;
 * [`immutable-database`](./immutabe-database/) subdirectory, which contains instructions to deploy blockchain database to separate cluster;
 * [`kubernetes-workloads`](./kubernetes-workloads) subdirectory, which contains Ansible playbooks to monitor k8s cluster, run benchmarks and scrape k8s nodes metrics;
