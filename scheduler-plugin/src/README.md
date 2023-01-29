@@ -1,4 +1,4 @@
-# carbon-scheduling - custom Kubernetes Scheduling Framework plugins
+# carbon-aware-scheduling - custom Kubernetes Scheduling Framework plugins
 
 This directory contains source code of `kube-scheduler` plugins implemented in Golang.
 
