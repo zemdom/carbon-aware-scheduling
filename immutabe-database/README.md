@@ -1,4 +1,4 @@
-# carbon-scheduling - cluster carbon intensity blockchain database
+# carbon-aware-scheduling - cluster carbon intensity blockchain database
 
 
 ## Prework
@@ -19,7 +19,7 @@ To create a production blockchain network, ensure you have the following:
 \
 **2. Install Hashicorp Vault on minikube cluster:**
 ```console
-[root@ansible-controller]# cd ~/carbon-scheduling/immutable-database
+[root@ansible-controller]# cd ~/carbon-aware-scheduling/immutable-database
 
 # add hashicorp helm repo and install vault in default namespace
 helm repo add hashicorp https://helm.releases.hashicorp.com
@@ -55,7 +55,7 @@ kubectl exec -ti vault-2 -- vault operator unseal $VAULT_UNSEAL_KEY
 ### Prepare Ansible controller
 **1. Configure Ansible controller:**
 ```console
-[root@ansible-controller]# cd ~/carbon-scheduling/immutable-database
+[root@ansible-controller]# cd ~/carbon-aware-scheduling/immutable-database
 
 python3 -m venv ./venv
 source ./venv/bin/activate
@@ -79,13 +79,13 @@ pip3 install -r requirements.txt
 \
 **3. Generate ssh key for k8s cluster (one key is needed for each Organization):**
 ```console
-[root@ansible-controller:~/carbon-scheduling/immutable-database]# ssh-keygen -q -N "" -f ./gitops
+[root@ansible-controller:~/carbon-aware-scheduling/immutable-database]# ssh-keygen -q -N "" -f ./gitops
 ```
 
 \
 **4. Get Vault root_token value:**
 ```console
-[root@ansible-controller:~/carbon-scheduling/immutable-database]# grep "root_token" cluster-keys.json | awk -F "\"" '{print $4}'
+[root@ansible-controller:~/carbon-aware-scheduling/immutable-database]# grep "root_token" cluster-keys.json | awk -F "\"" '{print $4}'
 ```
 
 \
@@ -103,7 +103,7 @@ pip3 install -r requirements.txt
 \
 **6. Clone Hyperledger Bevel repository fork:**
 ```console
-[root@ansible-controller]# cd ~/carbon-scheduling/immutable-database
+[root@ansible-controller]# cd ~/carbon-aware-scheduling/immutable-database
 
 git clone https://github.com/<user>/bevel.git
 cd bevel
@@ -113,13 +113,13 @@ git checkout b6892c031d49a1145d5ef91fe78f23e4bc3e1165
 \
 **7. Install additional requirements:**
 ```console
-[root@ansible-controller:~/carbon-scheduling/immutable-database/bevel]# ansible-galaxy install -r platforms/shared/configuration/requirements.yaml
+[root@ansible-controller:~/carbon-aware-scheduling/immutable-database/bevel]# ansible-galaxy install -r platforms/shared/configuration/requirements.yaml
 ```
 
 \
 **8. Copy configuration files to bevel `build` directory:**
 ```console
-[root@ansible-controller]# cd ~/carbon-scheduling/immutable-database/bevel
+[root@ansible-controller]# cd ~/carbon-aware-scheduling/immutable-database/bevel
 
 mkdir build
 
@@ -140,7 +140,7 @@ cp ../inventory .
 \
 **10. Deploy blockchain network to k8s cluster:**
 ```console
-[root@ansible-controller:~/carbon-scheduling/immutable-database/bevel]# ANSIBLE_PYTHON_INTERPRETER=~/carbon-scheduling/immutable-database/venv/bin/python3 ansible-playbook platforms/shared/configuration/site.yaml -e "@./build/network.yaml" -i inventory
+[root@ansible-controller:~/carbon-aware-scheduling/immutable-database/bevel]# ANSIBLE_PYTHON_INTERPRETER=~/carbon-aware-scheduling/immutable-database/venv/bin/python3 ansible-playbook platforms/shared/configuration/site.yaml -e "@./build/network.yaml" -i inventory
 ```
 
 \
