@@ -1,4 +1,4 @@
-# carbon-scheduling - carbon footprint coefficients data
+# carbon-aware-scheduling - carbon footprint coefficients data
 
 Used dataset contains historic hourly carbon intensity data for Poland in 2021.
 
