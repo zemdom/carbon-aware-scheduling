@@ -4,7 +4,7 @@ import (
 	"fmt"
 	tf "github.com/galeone/tensorflow/tensorflow/go"
 	tg "github.com/galeone/tfgo"
-	"github.com/zemdom/carbon-scheduling/scheduler-plugin/src/utils"
+	"github.com/zemdom/carbon-aware-scheduling/scheduler-plugin/src/utils"
 	"log"
 	"path/filepath"
 	"strconv"

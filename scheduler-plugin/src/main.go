@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/zemdom/carbon-scheduling/scheduler-plugin/src/score-plugin"
+	"github.com/zemdom/carbon-aware-scheduling/scheduler-plugin/src/score-plugin"
 	"k8s.io/component-base/cli"
 	"os"
 )

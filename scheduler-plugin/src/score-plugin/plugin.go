@@ -2,8 +2,8 @@ package score_plugin
 
 import (
 	"context"
-	"github.com/zemdom/carbon-scheduling/scheduler-plugin/src/power-model"
-	"github.com/zemdom/carbon-scheduling/scheduler-plugin/src/utils"
+	"github.com/zemdom/carbon-aware-scheduling/scheduler-plugin/src/power-model"
+	"github.com/zemdom/carbon-aware-scheduling/scheduler-plugin/src/utils"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

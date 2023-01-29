@@ -1,4 +1,4 @@
-module github.com/zemdom/carbon-scheduling/scheduler-plugin/src
+module github.com/zemdom/carbon-aware-scheduling/scheduler-plugin/src
 
 go 1.18
 
