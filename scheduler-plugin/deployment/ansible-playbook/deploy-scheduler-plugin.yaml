@@ -9,7 +9,7 @@
 
   tasks:
     #    - name: "deploy_scheduler_plugin | Copy power models to master"
-    #    scp -r "/home/dominika/Documents/sem.3 mgr/magisterka/carbon-scheduling/power-models/power_models/test-run-metrics-server" root@192.168.49.2:/etc/power_models
+    #    scp -r "/home/ubuntu/carbon-aware-scheduling/power_models/test-run-metrics-server" root@node1:/etc/power_models
 
     - name: "deploy_scheduler_plugin | Backup current kube-scheduler.yaml manifest"
       ansible.builtin.shell: "cp {{ k8s_control_plane_config_path }}/manifests/kube-scheduler.yaml {{ k8s_control_plane_config_path }}/kube-scheduler.yaml"
