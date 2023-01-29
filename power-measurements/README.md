@@ -1,4 +1,4 @@
-# carbon-scheduling - power measurements on servers forming a Kubernetes cluster
+# carbon-aware-scheduling - power measurements on servers forming a Kubernetes cluster
 
 This directory contains instructions on how to measure servers power consumption using Yokogawa power meter.
 
