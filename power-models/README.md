@@ -1,4 +1,4 @@
-# carbon-scheduling - models predicting server power usage
+# carbon-aware-scheduling - models predicting server power usage
 
 Input and output data of power models during training and inference phases are shown on a schema below:
 ![Power models scheme](../.github/media/power-models-scheme.svg)
