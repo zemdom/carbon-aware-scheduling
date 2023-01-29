@@ -1,4 +1,4 @@
-# carbon-scheduling - workloads run on Kubernetes cluster
+# carbon-aware-scheduling - workloads run on Kubernetes cluster
 
 ## Prework
 **1. Prepare Python environment on Ansible controller:**
